@@ -3,10 +3,12 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -72,14 +74,29 @@ func main() {
 	server := &http.Server{
 		Addr: *addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !hostAllowed(r.URL.Host) {
-				return
+			start := time.Now()
+			result := "REJECT"
+
+			if hostAllowed(r.URL.Host) {
+				if r.Method == http.MethodConnect {
+					handleTunneling(w, r)
+				} else {
+					handleHTTP(w, r)
+				}
+				result = "OK"
 			}
-			if r.Method == http.MethodConnect {
-				handleTunneling(w, r)
-			} else {
-				handleHTTP(w, r)
-			}
+
+			end := time.Now()
+
+			fmt.Fprintf(os.Stderr,
+				"%s [%s] [%s] %s %s %s\n",
+				end.Format(time.RFC3339),
+				r.RemoteAddr,
+				end.Sub(start),
+				result,
+				r.Method,
+				r.URL.String(),
+			)
 		}),
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
