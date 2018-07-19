@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"flag"
 	"io"
 	"log"
 	"net"
@@ -55,11 +56,23 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
+func hostAllowed(host string) bool {
+	args := flag.Args()
+	for _, arg := range args {
+		if host == arg {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
+	addr := flag.String("bind", ":9999", "address:port to bind")
+	flag.Parse()
 	server := &http.Server{
-		Addr: ":9999",
+		Addr: *addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Host != "api.telegram.org:443" {
+			if !hostAllowed(r.URL.Host) {
 				return
 			}
 			if r.Method == http.MethodConnect {
